@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Send, FileUp, Upload } from "lucide-react";
 import { ChatBubble } from "@/components/ChatBubble";
 import { TypingIndicator } from "@/components/Loader";
+import { authService } from "@/services/authService";
 
 interface Message {
   id: string;
@@ -15,7 +16,18 @@ const Chat = () => {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [userName, setUserName] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Get user name from authService for consistency
+    const currentUser = authService.getCurrentUser();
+    if (currentUser && currentUser.username) {
+      setUserName(currentUser.username);
+    } else {
+      setUserName("User");
+    }
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -89,7 +101,6 @@ const Chat = () => {
               <Upload className="w-8 h-8 text-primary" />
             </motion.div>
             <div>
-              <h2 className="font-display font-semibold text-lg mb-1">Upload your meeting transcript</h2>
               <p className="text-sm text-muted-foreground max-w-sm">
                 Upload a PDF of your meeting transcript to get an AI-powered summary with key insights and action items.
               </p>
