@@ -106,6 +106,37 @@ class AuthService {
     return response
   }
 
+  /**
+   * Authenticated POST with multipart body. Does not set Content-Type so the
+   * browser can send the correct multipart boundary for FormData.
+   */
+  async fetchWithAuthFormData(
+    path: string,
+    formData: FormData
+  ): Promise<Response> {
+    const token = this.getAccessToken()
+
+    if (!token || isTokenExpired(token)) {
+      this._clearSession()
+      throw new Error('Session expired. Please log in again.')
+    }
+
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    })
+
+    if (response.status === 401) {
+      this._clearSession()
+      throw new Error('Session expired. Please log in again.')
+    }
+
+    return response
+  }
+
   // ------------------------------------------------------------------------ //
   // Public auth methods
   // ------------------------------------------------------------------------ //
@@ -193,6 +224,142 @@ class AuthService {
     } catch (error) {
       console.error('Error fetching user profile:', error)
       return null
+    }
+  }
+
+  async uploadMeetingPdf(file: File): Promise<{
+    success: boolean
+    session_id?: string
+    file_name?: string
+    file_url?: string
+    summary?: string
+    message?: string
+  }> {
+    const formData = new FormData()
+    formData.append('file', file)
+    try {
+      const response = await this.fetchWithAuthFormData('/sessions/upload-pdf', formData)
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        const detail = data.detail as unknown
+        let msg = 'Upload failed'
+        if (typeof detail === 'string') msg = detail
+        else if (Array.isArray(detail))
+          msg = detail.map((d: { msg?: string }) => d.msg ?? '').filter(Boolean).join(', ')
+        return { success: false, message: msg }
+      }
+
+      return {
+        success: true,
+        session_id: data.session_id,
+        file_name: data.file_name,
+        file_url: data.file_url,
+        summary: data.summary,
+      }
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Upload failed'
+      return { success: false, message: msg }
+    }
+  }
+
+  async getSessionMessages(sessionId: string): Promise<{
+    success: boolean
+    session?: {
+      id: string
+      title: string
+      file_name?: string
+      file_url?: string
+    }
+    messages?: Array<{ id: string; role: string; content: string; created_at?: string }>
+    message?: string
+  }> {
+    try {
+      const response = await this.fetchWithAuth(
+        `/sessions/${encodeURIComponent(sessionId)}/messages`
+      )
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        const detail = data.detail as unknown
+        let msg = 'Could not load conversation'
+        if (typeof detail === 'string') msg = detail
+        else if (Array.isArray(detail))
+          msg = detail.map((d: { msg?: string }) => d.msg ?? '').filter(Boolean).join(', ')
+        return { success: false, message: msg }
+      }
+
+      return {
+        success: true,
+        session: data.session,
+        messages: data.messages,
+      }
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Could not load conversation'
+      return { success: false, message: msg }
+    }
+  }
+
+  async sendChatMessage(
+    sessionId: string,
+    message: string
+  ): Promise<{
+    success: boolean
+    user_message?: { id: string; role: string; content: string; created_at?: string }
+    assistant_message?: { id: string; role: string; content: string; created_at?: string }
+    message?: string
+  }> {
+    try {
+      const response = await this.fetchWithAuth(
+        `/sessions/${encodeURIComponent(sessionId)}/chat`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ message }),
+        }
+      )
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        const detail = data.detail as unknown
+        let msg = 'Could not send message'
+        if (typeof detail === 'string') msg = detail
+        else if (Array.isArray(detail))
+          msg = detail.map((d: { msg?: string }) => d.msg ?? '').filter(Boolean).join(', ')
+        return { success: false, message: msg }
+      }
+
+      return {
+        success: true,
+        user_message: data.user_message,
+        assistant_message: data.assistant_message,
+      }
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Could not send message'
+      return { success: false, message: msg }
+    }
+  }
+
+  async deleteSession(sessionId: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      const response = await this.fetchWithAuth(
+        `/sessions/${encodeURIComponent(sessionId)}`,
+        { method: 'DELETE' }
+      )
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        const detail = data.detail as unknown
+        let msg = 'Could not delete conversation'
+        if (typeof detail === 'string') msg = detail
+        else if (Array.isArray(detail))
+          msg = detail.map((d: { msg?: string }) => d.msg ?? '').filter(Boolean).join(', ')
+        return { success: false, message: msg }
+      }
+
+      return { success: true }
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Could not delete conversation'
+      return { success: false, message: msg }
     }
   }
 
