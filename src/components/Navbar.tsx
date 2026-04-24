@@ -10,13 +10,25 @@ export const Navbar = ({ onMenuToggle }: NavbarProps) => {
   const [userName, setUserName] = useState("User");
 
   useEffect(() => {
-    // Get user name from authService for consistency
-    const currentUser = authService.getCurrentUser();
-    if (currentUser && currentUser.username) {
-      setUserName(currentUser.username);
-    } else {
-      setUserName("User");
-    }
+    // Keep navbar name in sync with the latest local session data.
+    const syncName = () => {
+      const currentUser = authService.getCurrentUser();
+      if (currentUser && currentUser.username?.trim()) {
+        setUserName(currentUser.username.trim());
+      } else {
+        setUserName("User");
+      }
+    };
+
+    syncName();
+    window.addEventListener("focus", syncName);
+    window.addEventListener("storage", syncName);
+    window.addEventListener("auth-user-updated", syncName);
+    return () => {
+      window.removeEventListener("focus", syncName);
+      window.removeEventListener("storage", syncName);
+      window.removeEventListener("auth-user-updated", syncName);
+    };
   }, []);
 
   return (

@@ -34,6 +34,13 @@ interface AuthResult {
   message: string
 }
 
+interface SignupAvailabilityResponse {
+  success: boolean
+  email_available: boolean
+  username_available: boolean
+  message?: string
+}
+
 // -------------------------------------------------------------------------- //
 // JWT helpers
 // -------------------------------------------------------------------------- //
@@ -64,6 +71,12 @@ function isTokenExpired(token: string): boolean {
 // -------------------------------------------------------------------------- //
 
 class AuthService {
+  private _emitUserUpdated(): void {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('auth-user-updated'))
+    }
+  }
+
   // ------------------------------------------------------------------------ //
   // Core fetch wrapper
   // ------------------------------------------------------------------------ //
@@ -166,6 +179,40 @@ class AuthService {
     }
   }
 
+  async checkSignupAvailability(
+    email?: string,
+    username?: string
+  ): Promise<SignupAvailabilityResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/check-availability`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, username }),
+      })
+
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        return {
+          success: false,
+          email_available: true,
+          username_available: true,
+          message: data.detail || 'Availability check failed',
+        }
+      }
+
+      return data
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Availability check failed'
+      return {
+        success: false,
+        email_available: true,
+        username_available: true,
+        message: msg,
+      }
+    }
+  }
+
   async signin(email: string, password: string): Promise<LoginResponse> {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -218,9 +265,29 @@ class AuthService {
     try {
       const response = await this.fetchWithAuth(`/auth/profile/${userId}`)
 
-      if (!response.ok) return null
+      if (!response.ok) {
+        const currentUser = this.getCurrentUser()
+        if (currentUser && currentUser.user_id === userId) {
+          return {
+            id: currentUser.user_id,
+            email: currentUser.email,
+            username: currentUser.username,
+            created_at: '',
+            updated_at: '',
+          }
+        }
+        return null
+      }
 
-      return await response.json()
+      const profile = (await response.json()) as UserProfile
+      if (profile?.username !== undefined) {
+        localStorage.setItem('username', profile.username ?? '')
+      }
+      if (profile?.email) {
+        localStorage.setItem('email', profile.email)
+      }
+      this._emitUserUpdated()
+      return profile
     } catch (error) {
       console.error('Error fetching user profile:', error)
       return null
@@ -382,6 +449,7 @@ class AuthService {
       // Keep localStorage username in sync
       if (updates.username !== undefined) {
         localStorage.setItem('username', updates.username)
+        this._emitUserUpdated()
       }
 
       return data
@@ -428,6 +496,7 @@ class AuthService {
     localStorage.setItem('user_id', data.user_id!)
     localStorage.setItem('email', data.email!)
     localStorage.setItem('username', data.username ?? '')
+    this._emitUserUpdated()
   }
 
   private _clearSession(): void {
@@ -436,6 +505,7 @@ class AuthService {
     localStorage.removeItem('user_id')
     localStorage.removeItem('email')
     localStorage.removeItem('username')
+    this._emitUserUpdated()
   }
 }
 

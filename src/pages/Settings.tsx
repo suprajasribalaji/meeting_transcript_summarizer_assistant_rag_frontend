@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { User, Mail, LogOut } from "lucide-react";
+import { User, Mail, LogOut, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../services/authService";
 
@@ -21,9 +21,11 @@ const Settings = () => {
   });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
+      setLoadingProfile(true);
       const currentUser = authService.getCurrentUser();
       if (!currentUser) {
         navigate("/login");
@@ -37,7 +39,13 @@ const Settings = () => {
           username: userProfile.username || "",
           email: userProfile.email,
         });
+      } else {
+        setFormData({
+          username: currentUser.username || "",
+          email: currentUser.email,
+        });
       }
+      setLoadingProfile(false);
     };
 
     fetchUserProfile();
@@ -64,6 +72,13 @@ const Settings = () => {
     });
 
     if (result.success) {
+      setProfile((prev) => ({
+        id: prev?.id || currentUser.user_id,
+        email: prev?.email || currentUser.email,
+        username: formData.username,
+        created_at: prev?.created_at,
+        updated_at: prev?.updated_at,
+      }));
       setMessage("Profile updated successfully!");
       setTimeout(() => setMessage(""), 3000);
     } else {
@@ -80,15 +95,22 @@ const Settings = () => {
 
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
+    <div className="p-6 w-full mx-auto">
       <h1 className="text-2xl font-display font-bold mb-1">Settings</h1>
-      <p className="text-sm text-muted-foreground mb-8">Manage your profile</p>
+      <p className="text-sm text-muted-foreground mb-4">Manage your profile</p>
 
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-2xl p-6 space-y-6"
+        className="glass rounded-2xl p-8 space-y-8"
       >
+        {loadingProfile ? (
+          <div className="py-16 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+            <Loader2 className="w-7 h-7 animate-spin text-primary" />
+            <p className="text-sm">Loading profile details...</p>
+          </div>
+        ) : (
+          <>
         {/* User Profile Summary */}
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
@@ -155,6 +177,8 @@ const Settings = () => {
             Logout
           </button>
         </div>
+          </>
+        )}
 
       </motion.div>
     </div>
