@@ -166,22 +166,6 @@ class AuthService {
     }
   }
 
-  // --------------------------------------------------------------------------
-  // Availability checks
-  // --------------------------------------------------------------------------
-
-  async checkEmail(email: string): Promise<{ available: boolean; message: string }> {
-    const response = await fetch(`${API_BASE_URL}/auth/check-email?email=${encodeURIComponent(email)}`)
-    const data = await response.json()
-    return { available: data.available, message: data.message }
-  }
-
-  async checkUsername(username: string): Promise<{ available: boolean; message: string }> {
-    const response = await fetch(`${API_BASE_URL}/auth/check-username?username=${encodeURIComponent(username)}`)
-    const data = await response.json()
-    return { available: data.available, message: data.message }
-  }
-
   async signin(email: string, password: string): Promise<LoginResponse> {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
