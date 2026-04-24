@@ -1,5 +1,5 @@
-import Login from "./Login";
+import { Navigate } from "react-router-dom";
 
-const Index = () => <Login />;
+const Index = () => <Navigate to="/login" replace />;
 
 export default Index;

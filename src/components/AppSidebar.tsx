@@ -1,6 +1,7 @@
 import { MessageSquare, Clock, Settings, LogOut, Zap } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { authService } from "@/services/authService";
 
 const menuItems = [
   { title: "Chat", url: "/chat", icon: MessageSquare },
@@ -10,6 +11,12 @@ const menuItems = [
 
 export const AppSidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await authService.signout();
+    navigate('/login');
+  };
 
   return (
     <aside className="w-64 h-screen bg-sidebar border-r border-border flex flex-col shrink-0 max-md:hidden">
@@ -19,7 +26,7 @@ export const AppSidebar = () => {
           <div className="w-9 h-9 rounded-lg bg-primary/20 flex items-center justify-center">
             <Zap className="w-5 h-5 text-primary" />
           </div>
-          <span className="font-display font-bold text-lg text-foreground">AI Transcript</span>
+          <span className="font-display font-bold text-lg text-foreground">Meeting Summarizer Assistant</span>
         </div>
       </div>
 
@@ -41,13 +48,13 @@ export const AppSidebar = () => {
 
       {/* Logout */}
       <div className="p-4 border-t border-border">
-        <NavLink
-          to="/"
+        <button
+          onClick={handleLogout}
           className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground transition-all duration-200 hover:bg-destructive/10 hover:text-destructive"
         >
           <LogOut className="w-4 h-4" />
           <span>Logout</span>
-        </NavLink>
+        </button>
       </div>
     </aside>
   );
